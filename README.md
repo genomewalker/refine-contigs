@@ -191,7 +191,9 @@ If we push the limits from Megahit and we fine-tune some of its options, we can 
 ```
 
 But of course this also translates in potentially having more misassemblies. As an example:
-![assets/images/refineC-methano-wfMH.png](assets/images/refineC-methano-wfMH.png#center)
+<p align="center">
+<img src="assets/images/refineC-methano-wfMH.png" width=50% align=center>
+<p />
 
 Finally, as an example of using an assembly workflow specially designed for ancient metagenomics data that combines de Bruijn and overlap-based methods in combination with refineC, we obtain an assembly like:
 
