@@ -1,0 +1,2 @@
+include versioneer.py
+include refine_contigs/_version.py
