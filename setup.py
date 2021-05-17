@@ -7,12 +7,17 @@ requirements = [
     "networkx>=2.5",
     "tqdm==4.50.0",
     "PyYAML>=5.4",
-    "biopython>=1.68",
+    "biopython>=1.77",
     "pyfaidx>=0.5.9",
     "pyranges>=0.0.97",
 ]
 
 setup(
+    setup_requires=[
+        # Setuptools 18.0 properly handles Cython extensions.
+        "setuptools>=18.0",
+        "Cython>=0.29.21",
+    ],
     name="refine-contigs",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
