@@ -21,7 +21,7 @@ setup(
     name="refine-contigs",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
-    description="A simple contig merging tool using minimus2",
+    description="A simple tool to identify and clean misassemblies for ancient metagenomics",
     license="GNUv3",
     author="Antonio Fernandez-Guerra",
     author_email="antonio@metagenomics.eu",

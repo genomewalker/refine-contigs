@@ -96,7 +96,7 @@ def is_valid_file(parser, arg, var):
 
 help_msg = {
     "search_results": "MMseqs2 search results",
-    "contigs": "Contig file to merge with minimus2",
+    "contigs": "Contig file to check for misassemblies",
     "min_id": "Minimun id to use for the overlap",
     "min_cov": "Minimun percentage of the coverage for the overlap",
     "frag_min_len": "Minimum fragment length to keep",
@@ -117,7 +117,7 @@ help_msg = {
 def get_arguments(argv=None):
 
     parser = argparse.ArgumentParser(
-        description="Merges overlapping sequences using minimus2",
+        description="Finds misassemblies in ancient data",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     optional = parser._action_groups.pop()  # Edited this line

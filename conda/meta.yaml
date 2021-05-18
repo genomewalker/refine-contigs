@@ -36,6 +36,6 @@ test:
 
 about:
   home: https://github.com/genomewalker/refine-contigs
-  summary: "A simple contig merging tool using minimus2"
+  summary: "A simple tool to identify and clean misassemblies for ancient metagenomics"
   license: {{ setup_data['license'] }}
   license_file: LICENSE

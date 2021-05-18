@@ -77,15 +77,15 @@ refineC only needs a contig file. For a complete list of option
 $ refineC --help
 
 usage: refineC [-h] --contigs FILE [--tmp DIR] [--threads INT]
-              [--prefix PREFIX] [--output OUT] [--min-id FLOAT]
-              [--min-cov FLOAT] [--frag-min-len INT] [--frag-cls-id FLOAT]
-              [--frag-cls-cov FLOAT] [--glob-cls-id FLOAT]
-              [--glob-cls-cov FLOAT] [--debug] [--keep-files] [--version]
+               [--prefix PREFIX] [--output OUT] [--min-id FLOAT]
+               [--min-cov FLOAT] [--frag-min-len INT] [--frag-cls-id FLOAT]
+               [--frag-cls-cov FLOAT] [--glob-cls-id FLOAT]
+               [--glob-cls-cov FLOAT] [--debug] [--keep-files] [--version]
 
-Merges overlapping sequences using minimus2
+Finds misassemblies in ancient data
 
 required arguments:
-  --contigs FILE        Contig file to merge with minimus2
+  --contigs FILE        Contig file to check for misassemblies
 
 Overlap identification arguments:
   --min-id FLOAT        Minimun id to use for the overlap (default: 95.0)
@@ -121,10 +121,10 @@ optional arguments:
 One would run refineC as:
 
 ```bash
-refineC --contigs b40d22c9e7.assm.combined.fasta --min-id 95.0 --min-cov 0.6 --prefix ctg --output contigs-merged --threads 32
+refineC --contigs b40d22c9e7.assm.combined.fasta --min-id 95.0 --min-cov 0.25 --prefix ctg --output contigs-merged --threads 32
 ```
 
-*--contigs*: Here we specify the location of the contigs to merge
+*--contigs*: Here we specify the location of the contigs to process
 
 *--min-id*: Minimum identitify for the overlaps between contig pairs
 
