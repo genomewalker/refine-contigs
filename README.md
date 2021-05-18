@@ -5,14 +5,14 @@
 [![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/genomewalker/refine-contigs?include_prereleases&label=version)](https://github.com/genomewalker/refine-contigs/releases) [![refine-contigs](https://github.com/genomewalker/refine-contigs/workflows/refineC_ci/badge.svg)](https://github.com/genomewalker/refine-contigs/actions) [![PyPI](https://img.shields.io/pypi/v/refine-contigs)](https://pypi.org/project/refine-contigs/) [![Conda](https://img.shields.io/conda/v/genomewalker/refine-contigs)](https://anaconda.org/genomewalker/refine-contigs)
 
 
-refineC is a simple tool to identify potential misassemblies in contigs recovered from ancient metagenomes. The assembly of ancient metagenomics data is challenging due to the short length and post-mortem damage in reads. The short length of the reads pushes the limits of the assemblers, and the recovered contigs might contain misassemblies that can, for example, lead to misleading ecological insights, spurious pangenomic analyses, erroneous prediction of the functional potential or impact the outcome of the binning process by mixing distantly related or unrelated phylogenetic gene markers. With the assembly of ancient metagenomics data we can face different problems:
+refineC is a simple tool to identify potential misassemblies in contigs recovered from ancient metagenomes. The assembly of ancient metagenomics data is challenging due to the short length and post-mortem damage in reads. The short length of the reads pushes the limits of the assemblers, and the recovered contigs might contain misassemblies that can, for example, lead to misleading ecological insights, spurious pangenomic analyses, erroneous prediction of the functional potential, or impact the outcome of the binning process by mixing distantly related or unrelated phylogenetic gene markers. With the assembly of ancient metagenomics data, we can face different problems:
 
 - **Inter-genomic mosaic**: Chimeric contigs containing a mixture of sequence from multiple organisms
 - **Intra-genomic mosaic**: Chimeric contigs mixing different genomic regions from the same organism
 - **Temporal mosaic**: Chimeric contigs containing a mixture of sequence from different times (and organisms)
 
 
-At the moment refineC can mitigate the effects of the first and second type of problems by exploiting the information of de Bruijn (Megahit/Spades) and overlap-based assemblers (PLASS/PenguiN). While the de Bruijn assemblers will assemble longer contigs, the overlap-based assemblers will recover more of the ancient sequence space precent in the ancient sample. In any case, both type of assemblers will end up generating misassembled contigs, especially when we fine-tune the assemblers to recover as much as possible.
+At the moment, refineC can mitigate the effects of the first and second type of problems by exploiting the information of de Bruijn (Megahit/Spades) and overlap-based assemblers (PLASS/PenguiN). While the de Bruijn assemblers will assemble longer contigs, the overlap-based assemblers will recover more of the ancient sequence space present in the ancient sample. In any case, both types of assemblers will end up generating misassembled contigs, especially when we fine-tune the assemblers to recover as much as possible.
 
 RefineC follows a simple approach to identify the misassemblies:
 
@@ -20,18 +20,18 @@ RefineC follows a simple approach to identify the misassemblies:
 - Identify groups of contigs that share a certain amount of sequence identity and coverage
 - Find overlapping regions for each contig supported by other contigs and extract the longest one. Keep the leftover parts of the contigs if they are longer than a certain threshold
 - Remove redundancy of the overlapping fragments by sequence clustering
-- Add the new contig set to the originasl set of contigs without hits in the all-vs-all comparison
+- Add the new contig set to the original set of contigs without hits in the all-vs-all comparison
 - Remove redundancy by sequence clustering
 
 ![assets/images/refineC-wf.png](assets/images/refineC-wf.png#center)
 
 # Installation
 
-We recommend to have [**conda**](https://docs.conda.io/en/latest/) installed to manage the virtual environments
+We recommend having [**conda**](https://docs.conda.io/en/latest/) installed to manage the virtual environments
 
 ### Using pip
 
-First we create a conda virtual environment with:
+First, we create a conda virtual environment with:
 
 ```bash
 wget https://raw.githubusercontent.com/genomewalker/refine-contigs/master/environment.yml
@@ -124,9 +124,9 @@ One would run refineC as:
 refineC --contigs b40d22c9e7.assm.combined.fasta --min-id 95.0 --min-cov 0.25 --prefix ctg --output contigs-merged --threads 32
 ```
 
-*--contigs*: Here we specify the location of the contigs to process
+*--contigs*: Here, we specify the location of the contigs to process
 
-*--min-id*: Minimum identitify for the overlaps between contig pairs
+*--min-id*: Minimum identity for the overlaps between contig pairs
 
 *--min-cov*: Minimum coverage between contig pairs
 
@@ -138,13 +138,13 @@ refineC --contigs b40d22c9e7.assm.combined.fasta --min-id 95.0 --min-cov 0.25 --
 
 
 
-# Misassemblies in acient metagenomic data
+# Misassemblies in ancient metagenomic data
 
-As a proof of concept we generated synthetic ancient data with [aMGSIM](https://github.com/genomewalker/aMGSIM) from _Methanosarcina bakeri_ MS (4,533,209 nt). In total we generated 625,270 PE reads (20X) with a modal read length of 63nt and the following parameters for the Briggs model [0.03, 0.1, 0.01, 0.2]. We performed three different assemblies:
+As a proof of concept, we generated synthetic ancient data with [aMGSIM](https://github.com/genomewalker/aMGSIM) from _Methanosarcina bakeri_ MS (4,533,209 nt). In total, we generated 625,270 PE reads (20X) with a modal read length of 63nt and the following parameters for the Briggs model [0.03, 0.1, 0.01, 0.2]. We performed three different assemblies:
 
 - Megahit with default parameters
 - Megahit with fine-tuned parameters
-- Experimental assembly worflow for ancient metagenomic data (Will be public soon)
+- Experimental assembly workflow for ancient metagenomic data (Will be public soon)
 
 The statistics of the **Megahit with default parameters** for the contigs longer than 1000nt are:
 
@@ -168,7 +168,7 @@ As you can see, this would be a _medium-quality_ recovered MAG. The statistics a
 
 ![assets/images/refineC-methano-basicMH.png](assets/images/refineC-methano-basicMH.png#center)
 
-This is not exlcusive of Megahit, with SPAdes we have similar situations. Here the missambly cover different regions and different strand:
+This is not exclusive of Megahit; with SPAdes, we have similar situations. Here the misassembly cover different regions and different strand:
 
 ![assets/images/refineC-methano-SPAdes.png](assets/images/refineC-methano-SPAdes.png#center)
 
@@ -180,7 +180,7 @@ If we push the limits from Megahit and we fine-tune some of its options, we can 
 - Maximum contig length: 26,014
 
 
- with same values of redundancy but larger completion and we recover a larger potential fraction of the genome (~92%):
+ with same values of redundancy but larger completion, and we recover a larger potential fraction of the genome (~92%):
 
 ```
 ╒════════════╤══════════╤══════════════╤════════════════╤════════════════╤══════════════╤════════════════╕
@@ -203,7 +203,7 @@ Finally, as an example of using an assembly workflow specially designed for anci
 - Maximum contig length: 17,453
 
 
-In this case the estimates from anvi'o show a lower redundancy values, with the same completion and it potentially recovered 97% of the genome length
+In this case, the estimates from anvi'o show lower redundancy values, with the same completion, and it potentially recovered 97% of the genome length
 ```
 ╒════════════╤══════════╤══════════════╤════════════════╤════════════════╤══════════════╤════════════════╕
 │ bin name   │ domain   │   confidence │   % completion │   % redundancy │   num_splits │   total length │
@@ -212,7 +212,7 @@ In this case the estimates from anvi'o show a lower redundancy values, with the 
 ╘════════════╧══════════╧══════════════╧════════════════╧════════════════╧══════════════╧════════════════╛
 ```
 
-In this case, we follow a conservative approach to minimize the risk of misassemblies. This translates in a slighlty smaller contig average size as refineC will fragment the contigs not well supported. For example, taking the contig `mh_000000000843` shown before to be misassembled in the **Megahit with fine-tuned parameters** assembly, the contig should be split in two parts, from 1-9757 and from 9536-14953. As refineC is a reference free method, it uses the available information within the de Bruijn and overlap-based assemblies and produces the following splits:
+In this case, we follow a conservative approach to minimize the risk of misassemblies. This translates in a slightly smaller contig average size as refineC will fragment the contigs not well supported. For example, taking the contig `mh_000000000843` shown before to be misassembled in the **Megahit with fine-tuned parameters** assembly, the contig should be split into two parts, from 1-9757 and from 9536-14953. As refineC is a reference-free method, it uses the available information within the de Bruijn and overlap-based assemblies and produces the following splits:
 
 |           Contig           | Start |  End  |    Class    | Length |
 |:--------------------------:|:-----:|:-----:|:-----------:|:------:|
@@ -221,4 +221,4 @@ In this case, we follow a conservative approach to minimize the risk of misassem
 | 98f2aa9f20_mh_000000000843 |  2179 |  5010 | non-overlap |  2831  |
 | 98f2aa9f20_mh_000000000843 |  9757 | 14953 | non-overlap |  5196  |
 
-RefineC breaks the contig `98f2aa9f20_mh_000000000843` in four fragments, two of them are supported by other contigs and two of them are unique to this contig. Increasing the fragmentation is a small price to pay to have higher quality contigs.
+RefineC breaks the contig `98f2aa9f20_mh_000000000843` into four fragments, two of them are supported by other contigs, and two of them are unique to this contig. Increasing the fragmentation is a small price to pay to have higher quality contigs.
