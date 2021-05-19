@@ -13,22 +13,17 @@ see <https://www.gnu.org/licenses/>.
 
 
 import logging
-from sys import path
-
-from pandas.core.reshape.merge import merge
 from refine_contigs.utils import (
-    get_arguments,
-    get_components,
     fasta_to_dataframe,
     fast_flatten,
     df_to_seq,
     dereplicate_fragments,
-    combine_fragment_files,
     get_components_clique,
     get_components_par,
     get_graph,
     process_minimus2,
-    concat_df
+    concat_df,
+    clean_up
 )
 import gzip
 import networkx as nx
@@ -203,6 +198,7 @@ def merge_contigs(args):
         nx.to_pandas_edgelist(G).to_csv(
             g_fname, sep="\t", compression="gzip", index=False
         )
+        clean_up(keep=args.keep_files, temp_dir=str(tmp_dir))
 
     else:
         logging.info("Couldn't find any overlaps")

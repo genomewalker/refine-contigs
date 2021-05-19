@@ -11,11 +11,8 @@ You should have received a copy of the GNU General Public License along with thi
 see <https://www.gnu.org/licenses/>.
 """
 
-import shutil
 import logging
-from sys import path
 from refine_contigs.utils import (
-    get_arguments,
     get_components,
     fasta_to_dataframe,
     fast_flatten,
@@ -79,6 +76,9 @@ def split_contigs(args):
     if nx.number_connected_components(G) > 0:
         # Get components
         G_components = get_components(G)
+        if G_components.count(None) == len(G_components):
+            logging.info("Couldn't find any component")
+            exit(0)
         d = {
             name: f"comp-{k}"
             for k, comp in enumerate(list(G_components))

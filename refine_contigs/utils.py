@@ -23,7 +23,7 @@ from itertools import chain
 from networkx.algorithms.approximation import clique
 from statistics import mean
 import pyranges as pr
-import psutil
+
 log = logging.getLogger("my_logger")
 log.setLevel(logging.INFO)
 timestr = time.strftime("%Y%m%d-%H%M%S")
