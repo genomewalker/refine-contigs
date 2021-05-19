@@ -180,9 +180,6 @@ def merge_contigs(args):
                 how="left",
             )
         )
-        mapping_fname = f"{args.output}.merged.mapping.tsv.gz"
-        logging.info(f"Saving name mappings to {mapping_fname} file")
-        mappings.to_csv(mapping_fname, sep="\t", compression="gzip", index=False)
 
         mappings.columns = [
             "contig_name_merged",
