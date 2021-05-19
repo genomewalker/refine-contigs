@@ -4,7 +4,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python==3.6.1
+  - python==3.6.13
   - mmseqs2
   - amos
   - mummer4
