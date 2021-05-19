@@ -25,6 +25,8 @@ RefineC follows a simple approach to identify the misassemblies:
 
 ![assets/images/refineC-wf.png](assets/images/refineC-wf.png#center)
 
+In addition, `refineC` has a **merge** option where it tries to find contigs that might be merged using Minimus2. On some occasions, there are overlaps between contigs that are very well supported by other contigs in the sample, and refineC cannot collapse them. This usually happens when terminal regions of the contigs are overlapping other terminal regions. For this reason, although not usually recommended, we use Minimus to merge overlapping contigs. We apply a conservative approach to the already refined contigs, where we find overlaps in the same manner as in the `split` subcommand, but in this case, we select the maximum clique in a component to be merged by Minimus2. 
+
 # Installation
 
 We recommend having [**conda**](https://docs.conda.io/en/latest/) installed to manage the virtual environments
@@ -76,52 +78,110 @@ refineC only needs a contig file. For a complete list of option
 ```
 $ refineC --help
 
-usage: refineC [-h] --contigs FILE [--tmp DIR] [--threads INT]
-               [--prefix PREFIX] [--output OUT] [--min-id FLOAT]
-               [--min-cov FLOAT] [--frag-min-len INT] [--frag-cls-id FLOAT]
-               [--frag-cls-cov FLOAT] [--glob-cls-id FLOAT]
-               [--glob-cls-cov FLOAT] [--debug] [--keep-files] [--version]
+usage: refineC [-h] [--version] [--debug] {split,merge} ...
 
 Finds misassemblies in ancient data
+
+positional arguments:
+  {split,merge}  positional arguments
+    split        Find misassemblies
+    merge        Merge potential overlaps
+
+optional arguments:
+  -h, --help     show this help message and exit
+  --version      Print program version
+  --debug        Print debug messages (default: False)
+```
+
+For the split mode:
+
+```
+$refineC split --help
+
+usage: refineC split [-h] [--tmp DIR] [--threads INT] [--keep-files]
+                     [--output OUT] [--prefix PREFIX] --contigs FILE
+                     [--min-id FLOAT] [--min-cov FLOAT] [--glob-cls-id FLOAT]
+                     [--glob-cls-cov FLOAT] [--frag-min-len INT]
+                     [--frag-cls-id FLOAT] [--frag-cls-cov FLOAT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --tmp DIR             Temporary directory (default:./tmp)
+  --threads INT         Number of threads (default: 2)
+  --keep-files          Keep temporary data (default: False)
+  --output OUT          Fasta file name to save the merged contigs (default:
+                        contigs)
+  --prefix PREFIX       Prefix for contigs name (default: contig)
 
 required arguments:
   --contigs FILE        Contig file to check for misassemblies
 
-Overlap identification arguments:
+overlap identification arguments:
   --min-id FLOAT        Minimun id to use for the overlap (default: 95.0)
   --min-cov FLOAT       Minimun percentage of the coverage for the overlap
                         (default: 0.25)
 
-Fragment refinement arguments:
-  --frag-min-len INT    Minimum fragment length to keep (default: 1000)
-  --frag-cls-id FLOAT   Minimum identity to cluster the fragments (default:
-                        0.95)
-  --frag-cls-cov FLOAT  Minimum coverage to cluster the fragments (default:
-                        0.6)
-
-Final clustering arguments:
+global clustering arguments:
   --glob-cls-id FLOAT   Minimum identity to cluster the refined dataset
                         (default: 0.9)
   --glob-cls-cov FLOAT  Minimum coverage to cluster the refined dataset
                         (default: 0.9)
 
-optional arguments:
-  -h, --help            show this help message and exit
-  --tmp DIR             Temporary directory (default: ./tmp)
-  --threads INT         Number of threads (default: 16)
-  --prefix PREFIX       Prefix for contigs name (default: contig)
-  --output OUT          Fasta file name to save the merged contigs (default:
-                        contigs-merged)
-  --debug               Print debug messages (default: False)
-  --keep-files          Keep temporary data (default: True)
-  --version             Print program version
+fragment refinement arguments:
+  --frag-min-len INT    Minimum fragment length to keep (default: 1000)
+  --frag-cls-id FLOAT   Minimum identity to cluster the fragments (default:
+                        0.95)
+  --frag-cls-cov FLOAT  Minimum coverage to cluster the fragments (default:
+                        0.6)
 ```
 
+And for the `merge` mode:
+```
+$refineC merge --help
 
-One would run refineC as:
+usage: refineC merge [-h] [--tmp DIR] [--threads INT] [--keep-files]
+                     [--output OUT] [--prefix PREFIX] --contigs FILE
+                     [--min-id FLOAT] [--min-cov FLOAT] [--glob-cls-id FLOAT]
+                     [--glob-cls-cov FLOAT] [--mnm2-threads INT]
+                     [--mnm2-overlap INT] [--mnm2-minid FLOAT]
+                     [--mnm2-maxtrim INT] [--mnm2-conserr FLOAT]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --tmp DIR             Temporary directory (default:./tmp)
+  --threads INT         Number of threads (default: 2)
+  --keep-files          Keep temporary data (default: False)
+  --output OUT          Fasta file name to save the merged contigs (default:
+                        contigs)
+  --prefix PREFIX       Prefix for contigs name (default: contig)
+
+required arguments:
+  --contigs FILE        Contig file to check for misassemblies
+
+overlap identification arguments:
+  --min-id FLOAT        Minimun id to use for the overlap (default: 95.0)
+  --min-cov FLOAT       Minimun percentage of the coverage for the overlap
+                        (default: 0.25)
+
+global clustering arguments:
+  --glob-cls-id FLOAT   Minimum identity to cluster the refined dataset
+                        (default: 0.9)
+  --glob-cls-cov FLOAT  Minimum coverage to cluster the refined dataset
+                        (default: 0.9)
+
+minimus2 arguments:
+  --mnm2-threads INT    Number of threads used by minimus2 (default: 1)
+  --mnm2-overlap INT    Assembly 1 vs 2 minimum overlap (default: 500)
+  --mnm2-minid FLOAT    Minimum overlap percent identity for alignments
+                        (default: 95.0)
+  --mnm2-maxtrim INT    Maximum sequence trimming length (default: 100)
+  --mnm2-conserr FLOAT  Maximum consensus error (default: 0.06)
+```
+
+One would run refineC `split` mode as:
 
 ```bash
-refineC --contigs b40d22c9e7.assm.combined.fasta --min-id 95.0 --min-cov 0.25 --prefix ctg --output contigs-merged --threads 32
+refineC split --contigs b40d22c9e7.assm.combined.fasta --min-id 95.0 --min-cov 0.25 --prefix ctg --output contigs-merged --threads 32
 ```
 
 *--contigs*: Here, we specify the location of the contigs to process
