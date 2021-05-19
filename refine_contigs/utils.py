@@ -260,7 +260,7 @@ def get_arguments(argv=None):
     )
 
     parser_merge = sub_parsers.add_parser(
-        "merge", help="Find misassemblies", parents=[parent_parser]
+        "merge", help="Merge potential overlaps", parents=[parent_parser]
     )
 
     frag_args = parser_split.add_argument_group("fragment refinement arguments")
