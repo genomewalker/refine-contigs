@@ -2,7 +2,7 @@ from setuptools import setup
 import versioneer
 
 requirements = [
-    "pandas>=1.2.0",
+    "pandas<=1.2.0",
     "scipy>=1.5.2",
     "networkx>=2.5",
     "tqdm==4.50.0",
@@ -18,6 +18,7 @@ setup(
         "setuptools>=18.0",
         "Cython>=0.29.21",
     ],
+    scripts=["scripts/minimus2_mod"],
     name="refine-contigs",
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
@@ -31,8 +32,8 @@ setup(
     install_requires=requirements,
     keywords="refine-contigs",
     classifiers=[
+        "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
     ],
 )

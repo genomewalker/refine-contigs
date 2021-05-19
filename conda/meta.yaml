@@ -14,14 +14,14 @@ build:
 
 requirements:
   build:
-    - python>=3.7
+    - python==3.6
     - setuptools
     - pip
     - Cython>=0.29.21
   run:
-    - python>=3.7
+    - python==3.6
     - mmseqs2
-    - pandas>=1.2.0
+    - pandas<=1.2.0
     - scipy>=1.5.2
     - networkx>=2.5
     - tqdm==4.50.0
@@ -29,6 +29,8 @@ requirements:
     - biopython>=1.77
     - pyranges>=0.0.97
     - pyfaidx>=0.5.9
+    - amos
+    - mummer4
     
 test:
   commands:

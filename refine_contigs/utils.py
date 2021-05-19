@@ -1,11 +1,11 @@
 import argparse
 import sys
-import shutil
 import gzip
 import os
 import pathlib
-
+import shutil
 import logging
+from networkx.algorithms.components.connected import connected_components
 import pandas as pd
 from multiprocessing import Pool
 from functools import partial
@@ -23,7 +23,7 @@ from itertools import chain
 from networkx.algorithms.approximation import clique
 from statistics import mean
 import pyranges as pr
-
+import psutil
 log = logging.getLogger("my_logger")
 log.setLevel(logging.INFO)
 timestr = time.strftime("%Y%m%d-%H%M%S")
@@ -94,23 +94,49 @@ def is_valid_file(parser, arg, var):
             return arg
 
 
+defaults = {
+    "tmp": "./tmp",
+    "threads": 2,
+    "min_id": 95.0,
+    "min_cov": 0.25,
+    "output": "contigs",
+    "prefix": "contig",
+    "frag_min_len": 1000,
+    "frag_cls_id": 0.95,
+    "frag_cls_cov": 0.6,
+    "global_cls_id": 0.9,
+    "global_cls_cov": 0.9,
+    "minimus2_threads": 1,
+    "minimus2_overlap": 500,
+    "minimus2_minid": 95.0,
+    "minimus2_maxtrim": 100,
+    "minimus2_conserr": 0.06
+}
+
+
+
 help_msg = {
-    "search_results": "MMseqs2 search results",
-    "contigs": "Contig file to check for misassemblies",
-    "min_id": "Minimun id to use for the overlap",
-    "min_cov": "Minimun percentage of the coverage for the overlap",
-    "frag_min_len": "Minimum fragment length to keep",
-    "frag_cls_id": "Minimum identity to cluster the fragments",
-    "frag_cls_cov": "Minimum coverage to cluster the fragments",
-    "global_cls_id": "Minimum identity to cluster the refined dataset",
-    "global_cls_cov": "Minimum coverage to cluster the refined dataset",
-    "prefix": "Prefix for contigs name",
-    "output": "Fasta file name to save the merged contigs",
-    "threads": "Number of threads",
-    "debug": "Print debug messages",
-    "version": "Print program version",
-    "tmp": "Temporary directory",
-    "keep_files": "Keep temporary data",
+    "search_results": f"MMseqs2 search results",
+    "contigs": f"Contig file to check for misassemblies",
+    "min_id": f"Minimun id to use for the overlap (default: {defaults['min_id']})",
+    "min_cov": f"Minimun percentage of the coverage for the overlap (default: {defaults['min_cov']})",
+    "frag_min_len": f"Minimum fragment length to keep (default: {defaults['frag_min_len']})",
+    "frag_cls_id": f"Minimum identity to cluster the fragments (default: {defaults['frag_cls_id']})",
+    "frag_cls_cov": f"Minimum coverage to cluster the fragments (default: {defaults['frag_cls_cov']})",
+    "global_cls_id": f"Minimum identity to cluster the refined dataset (default: {defaults['global_cls_id']})",
+    "global_cls_cov": f"Minimum coverage to cluster the refined dataset (default: {defaults['global_cls_cov']})",
+    "prefix": f"Prefix for contigs name (default: {defaults['prefix']})",
+    "output": f"Fasta file name to save the merged contigs (default: {defaults['output']})",
+    "threads": f"Number of threads (default: {defaults['threads']})",
+    "debug": f"Print debug messages",
+    "version": f"Print program version",
+    "tmp": f"Temporary directory (default:{defaults['tmp']})",
+    "keep_files": f"Keep temporary data (default: False)",
+    "minimus2_threads": f"Number of threads used by minimus2 (default: {defaults['minimus2_threads']})",
+    "minimus2_overlap": f"Assembly 1 vs 2 minimum overlap (default: {defaults['minimus2_overlap']})",
+    "minimus2_minid": f"Minimum overlap percent identity for alignments (default: {defaults['minimus2_minid']})",
+    "minimus2_maxtrim": f"Maximum sequence trimming length (default: {defaults['minimus2_maxtrim']})",
+    "minimus2_conserr": f"Maximum consensus error (default: {defaults['minimus2_conserr']})",
 }
 
 
@@ -120,22 +146,65 @@ def get_arguments(argv=None):
         description="Finds misassemblies in ancient data",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    optional = parser._action_groups.pop()  # Edited this line
-    required = parser.add_argument_group("required arguments")
-    ovl_args = parser.add_argument_group("Overlap identification arguments")
-    frag_args = parser.add_argument_group("Fragment refinement arguments")
-    cls_args = parser.add_argument_group("Final clustering arguments")
-    parser._action_groups.append(optional)  # added this line
+    parser.add_argument(
+        "--version",
+        action="version",
+        version="%(prog)s " + __version__,
+        help=help_msg["version"],
+    )
+    parser.add_argument(
+        "--debug", dest="debug", action="store_true", help=help_msg["debug"]
+    )
 
-    # required.add_argument(
-    #     "--search-results",
-    #     dest="search_results",
-    #     default=argparse.SUPPRESS,
-    #     required=True,
-    #     metavar="FILE",
-    #     type=lambda x: is_valid_file(parser, x, "--in-dir"),
-    #     help=help_msg["search_results"],
-    # )
+    # Same subparsers as usual
+    sub_parsers = parser.add_subparsers(help="positional arguments", dest="action",)
+
+    # Create parent subparser. Note `add_help=False` and creation via `argparse.`
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    optional = parent_parser._action_groups.pop()
+    required = parent_parser.add_argument_group("required arguments")
+    ovl_args = parent_parser.add_argument_group("overlap identification arguments")
+    global_cls_args = parent_parser.add_argument_group("global clustering arguments")
+
+    optional.add_argument(
+        "--tmp",
+        type=str,
+        default=defaults["tmp"],
+        metavar="DIR",
+        dest="tmp_dir",
+        help=help_msg["tmp"]
+    )
+    optional.add_argument(
+        "--threads",
+        type=int,
+        metavar="INT",
+        dest="threads",
+        default=defaults["threads"],
+        help=help_msg["threads"],
+    )
+
+    optional.add_argument(
+        "--keep-files",
+        dest="keep_files",
+        action="store_false",
+        help=help_msg["keep_files"],
+    )
+    optional.add_argument(
+        "--output",
+        type=str,
+        default=defaults["output"],
+        metavar="OUT",
+        dest="output",
+        help=help_msg["output"],
+    )
+    optional.add_argument(
+        "--prefix",
+        type=str,
+        default=defaults["prefix"],
+        metavar="PREFIX",
+        dest="prefix",
+        help=help_msg["prefix"],
+    )
     required.add_argument(
         "--contigs",
         required=True,
@@ -145,38 +214,6 @@ def get_arguments(argv=None):
         dest="contigs",
         help=help_msg["contigs"],
     )
-    optional.add_argument(
-        "--tmp",
-        type=str,
-        default="./tmp",
-        metavar="DIR",
-        dest="tmp_dir",
-        help=help_msg["tmp"],
-    )
-    optional.add_argument(
-        "--threads",
-        type=int,
-        metavar="INT",
-        dest="threads",
-        default=16,
-        help=help_msg["threads"],
-    )
-    optional.add_argument(
-        "--prefix",
-        type=str,
-        default="contig",
-        metavar="PREFIX",
-        dest="prefix",
-        help=help_msg["prefix"],
-    )
-    optional.add_argument(
-        "--output",
-        type=str,
-        default="contigs-merged",
-        metavar="OUT",
-        dest="output",
-        help=help_msg["output"],
-    )
     ovl_args.add_argument(
         "--min-id",
         metavar="FLOAT",
@@ -184,7 +221,7 @@ def get_arguments(argv=None):
             x, minval=0, maxval=100, parser=parser, var="--min-id"
         ),
         dest="min_id",
-        default=95.0,
+        default=defaults["min_id"],
         help=help_msg["min_id"],
     )
     ovl_args.add_argument(
@@ -193,17 +230,53 @@ def get_arguments(argv=None):
         type=lambda x: check_values(
             x, minval=0, maxval=1, parser=parser, var="--min-cov"
         ),
-        default=0.25,
+        default=defaults["min_cov"],
         help=help_msg["min_cov"],
         dest="min_cov",
     )
+    global_cls_args.add_argument(
+        "--glob-cls-id",
+        metavar="FLOAT",
+        type=lambda x: check_values(
+            x, minval=0, maxval=1, parser=parser, var="--global-cls-id"
+        ),
+        default=defaults["global_cls_id"],
+        help=help_msg["global_cls_id"],
+        dest="global_cls_id",
+    )
+    global_cls_args.add_argument(
+        "--glob-cls-cov",
+        metavar="FLOAT",
+        type=lambda x: check_values(
+            x, minval=0, maxval=1, parser=parser, var="--global-cls-cov"
+        ),
+        default=defaults["global_cls_cov"],
+        help=help_msg["global_cls_cov"],
+        dest="global_cls_cov",
+    )
+    # create the parser sub-commands
+    parser_split = sub_parsers.add_parser(
+        "split", help="Find misassemblies", parents=[parent_parser]
+    )
+
+    parser_merge = sub_parsers.add_parser(
+        "merge", help="Find misassemblies", parents=[parent_parser]
+    )
+
+    frag_args = parser_split.add_argument_group("fragment refinement arguments")
+    split_out_args = parser_split.add_argument_group("output options")
+
+    cls_args = parser_split.add_argument_group("final clustering arguments")
+    minimus2 = parser_merge.add_argument_group("minimus2 arguments")
+
+
     frag_args.add_argument(
         "--frag-min-len",
         metavar="INT",
         type=lambda x: check_values(
             x, minval=0, maxval=1e12, parser=parser, var="--frag-min-len"
         ),
-        default=1000,
+        default=defaults["frag_min_len"],
         help=help_msg["frag_min_len"],
         dest="frag_min_len",
     )
@@ -213,7 +286,7 @@ def get_arguments(argv=None):
         type=lambda x: check_values(
             x, minval=0, maxval=1, parser=parser, var="--frag-cls-id"
         ),
-        default=0.95,
+        default=defaults["frag_cls_id"],
         help=help_msg["frag_cls_id"],
         dest="frag_cls_id",
     )
@@ -223,48 +296,55 @@ def get_arguments(argv=None):
         type=lambda x: check_values(
             x, minval=0, maxval=1, parser=parser, var="--frag-cls-cov"
         ),
-        default=0.6,
+        default=defaults["frag_cls_cov"],
         help=help_msg["frag_cls_cov"],
         dest="frag_cls_cov",
     )
-    cls_args.add_argument(
-        "--glob-cls-id",
+    minimus2.add_argument(
+        "--mnm2-threads",
+        type=int,
+        metavar="INT",
+        dest="minimus2_threads",
+        default=defaults["minimus2_threads"],
+        help=help_msg["minimus2_threads"],
+    )
+    minimus2.add_argument(
+        "--mnm2-overlap",
+        type=int,
+        metavar="INT",
+        dest="minimus2_overlap",
+        default=defaults["minimus2_overlap"],
+        help=help_msg["minimus2_overlap"],
+    )
+    minimus2.add_argument(
+        "--mnm2-minid",
         metavar="FLOAT",
         type=lambda x: check_values(
-            x, minval=0, maxval=1, parser=parser, var="--global-cls-id"
+            x, minval=0, maxval=100, parser=parser, var="--min-id"
         ),
-        default=0.90,
-        help=help_msg["global_cls_id"],
-        dest="global_cls_id",
+        dest="minimus2_minid",
+        default=defaults["minimus2_minid"],
+        help=help_msg["minimus2_minid"],
     )
-    cls_args.add_argument(
-        "--glob-cls-cov",
+    minimus2.add_argument(
+        "--mnm2-maxtrim",
+        type=int,
+        metavar="INT",
+        dest="minimus2_maxtrim",
+        default=defaults["minimus2_maxtrim"],
+        help=help_msg["minimus2_maxtrim"],
+    )
+    minimus2.add_argument(
+        "--mnm2-conserr",
         metavar="FLOAT",
         type=lambda x: check_values(
-            x, minval=0, maxval=1, parser=parser, var="--global-cls-cov"
+            x, minval=0, maxval=1, parser=parser, var="--min-cov"
         ),
-        default=0.9,
-        help=help_msg["global_cls_cov"],
-        dest="global_cls_cov",
+        default=defaults["minimus2_conserr"],
+        help=help_msg["minimus2_conserr"],
+        dest="minimus2_conserr",
     )
-    optional.add_argument(
-        "--debug", dest="debug", action="store_true", help=help_msg["debug"]
-    )
-    optional.add_argument(
-        "--keep-files",
-        dest="keep_files",
-        action="store_false",
-        help=help_msg["keep_files"],
-    )
-    optional.add_argument(
-        "--version",
-        action="version",
-        version="%(prog)s " + __version__,
-        help=help_msg["version"],
-    )
-
-    args = parser.parse_args()
-
+    args = parser.parse_args(None if sys.argv[1:] else ["-h"])
     return args
 
 
@@ -286,15 +366,19 @@ def applyParallel(dfGrouped, func, threads, parms):
     return pd.concat(ret_list)
 
 
+def connected_component_subgraphs(G):
+    for c in nx.connected_components(G):
+        yield G.subgraph(c)
+
+
 def create_graph(results, min_id, min_cov):
     log.debug("Filtering graph with min-id {} and min-cov {}".format(min_id, min_cov))
-    results_filt = results[results["qcov"] >= min_cov][
+    results_filt = results[results["pident"] >= min_id][
         ["source", "target", "pident", "qcov"]
     ]
-    results_filt.columns = ["source", "target", "weight", "qcov"]
-    # print(results_filt)
-    # results_filt["weight"] = 1
-    G = nx.Graph()
+    results_filt.columns = ["source", "target", "pident", "weight"]
+
+    G = nx.Graph().to_undirected()
     M = nx.from_pandas_edgelist(
         results_filt,
         edge_attr=["weight"],
@@ -303,26 +387,31 @@ def create_graph(results, min_id, min_cov):
     for u, v, data in M.edges(data=True):
         if not G.has_edge(u, v):
             # set weight to 1 if no weight is given for edge in M
-            weight_raw = mean(
-                d.get("weight_raw", 0) for d in M.get_edge_data(u, v).values()
+            weight_avg = mean(
+                d.get("weight", 0) for d in M.get_edge_data(u, v).values()
             )
-            weight = mean(d.get("weight", 0) for d in M.get_edge_data(u, v).values())
-            G.add_edge(u, v, weight=weight, weight_raw=weight_raw)
-
+            weight = max(d.get("weight", 0) for d in M.get_edge_data(u, v).values())
+            pident_avg = mean(
+                d.get("pident", 0) for d in M.get_edge_data(u, v).values()
+            )
+            G.add_edge(
+                u, v, weight=weight, weight_avg=weight_avg, pident_avg=pident_avg
+            )
     G.remove_edges_from(list(nx.selfloop_edges(G)))
     # Identify isolated nodes
     edges2rm = [
-        (u, v) for u, v, d in G.edges(data=True) if float(d["weight"]) < float(min_id)
+        (u, v) for u, v, d in G.edges(data=True) if float(d["weight"]) < float(min_cov)
     ]
     G.remove_edges_from(edges2rm)
     isolated = list(nx.isolates(G))
     G.remove_nodes_from(isolated)
-    return G.to_undirected()
+
+    return G
 
 
 def get_components_clique(G):
     components = []
-    if G.number_of_edges() > 2:
+    if G.number_of_edges() >= 2:
         # TODO: Check how many components do we have
         n_comp = nx.number_connected_components(G)
         if n_comp >= 1:
@@ -347,7 +436,7 @@ def get_components_clique(G):
 
 def get_components(G):
     components = []
-    if G.number_of_edges() > 2:
+    if G.number_of_edges() >= 2:
         # TODO: Check how many components do we have
         n_comp = nx.number_connected_components(G)
         if n_comp >= 1:
@@ -485,11 +574,22 @@ def df_to_seq(df):
         seq_records.append(record)
     return seq_records
 
+def process_minimus2(component, parms):
+    res = stitch_contigs(
+        component=component,
+        contigs=parms["contigs"],
+        minid=parms["minid"],
+        overlap=parms["overlap"],
+        maxtrim=parms["maxtrim"],
+        conserr=parms["conserr"],
+        tmp=parms["tmp"],
+        threads=parms["threads"],
+    )
+    return res
 
-def refine_contigs(
+def stitch_contigs(
     component,
     contigs,
-    keep_files,
     overlap,
     minid,
     maxtrim,
@@ -520,17 +620,9 @@ def refine_contigs(
     )
     seqs = fasta_to_dataframe(seq)
     seqs["m_type"] = str("merged")
+    seqs["name"] = seqs["name"].apply(lambda x: f"merged-{int(x):012d}", 1)
     sglt = fasta_to_dataframe(singletons)
     sglt["m_type"] = str("singleton")
-
-    if keep_files:
-        for p in pathlib.Path(tmp).glob("{}*".format(fname)):
-            if os.path.isfile(p) or os.path.islink(p):
-                os.remove(p)  # remove the file
-            elif os.path.isdir(p):
-                shutil.rmtree(p)  # remove dir and all contains
-            else:
-                raise ValueError("file {} is not a file or dir.".format(p))
 
     return concat_df([seqs, sglt])
 
@@ -672,19 +764,6 @@ def dereplicate_fragments(frags, threads, tmp_dir, cls_step, cls_id=0.9, cls_cov
     return mmseqs_fasta_derep, mmseqs_tsv_derep
 
 
-def process_components(component, parms):
-    res = refine_contigs(
-        component=component,
-        contigs=parms["contigs"],
-        overlap=parms["overlap"],
-        minid=parms["minid"],
-        maxtrim=parms["maxtrim"],
-        threads=parms["threads"],
-        tmp=parms["tmp"],
-        keep_files=parms["keep_files"],
-        conserr=parms["conserr"],
-    )
-    return res
 
 
 def process_alns_reg(component, parms):
@@ -751,9 +830,9 @@ def get_graph(contigs, tmp_dir, max_seq_len, threads, min_id, min_cov):
     return G, results
 
 
-def get_components_par(parms, components, threads):
+def get_components_par(parms, components, func, threads):
     if is_debug():
-        dfs = list(map(partial(process_alns_reg, parms=parms), components))
+        dfs = list(map(partial(func, parms=parms), components))
     else:
         p = Pool(threads)
         if len(components) > 1000:
@@ -765,7 +844,7 @@ def get_components_par(parms, components, threads):
         dfs = list(
             tqdm.tqdm(
                 p.imap_unordered(
-                    partial(process_alns_reg, parms=parms),
+                    partial(func, parms=parms),
                     components,
                     chunksize=c_size,
                 ),
@@ -775,6 +854,9 @@ def get_components_par(parms, components, threads):
             )
         )
     return concat_df(dfs)
+
+
+
 
 
 def combine_fragment_files(df1, df2, ids):
@@ -788,3 +870,9 @@ def combine_fragment_files(df1, df2, ids):
     # dfs["name"] = dfs.index
     # dfs["name"] = dfs["name"].apply(lambda x: f"{name_str}_{x:012d}", 1)
     return dfs
+
+def clean_up(keep, temp_dir):
+    if keep:
+        logging.info("Cleaning up temporary files")
+        logging.shutdown()
+        shutil.rmtree(temp_dir, ignore_errors=True)
