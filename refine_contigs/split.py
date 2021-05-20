@@ -122,7 +122,7 @@ def split_contigs(args):
             f"Found {miss_contigs_ovl} overlaps in {len(miss_contigs)} contigs ({miss_contigs_ovl_nt_prop:.2f}% of the assembly)"
         )
 
-        aln_reg_fname = f"{args.output}.splits.overlaps.tsv.gz"
+        aln_reg_fname = f"{args.output}.split.overlaps.tsv.gz"
         logging.info(f"Saving overlaps to {aln_reg_fname}")
 
         contigs_names = contigs[["name", "name_original"]]
