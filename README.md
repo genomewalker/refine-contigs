@@ -117,20 +117,20 @@ required arguments:
   --contigs FILE        Contig file to check for misassemblies
 
 overlap identification arguments:
-  --min-id FLOAT        Minimun id to use for the overlap (default: 95.0)
+  --min-id FLOAT        Minimun id to use for the overlap (default: 0.9)
   --min-cov FLOAT       Minimun percentage of the coverage for the overlap
                         (default: 0.25)
 
 global clustering arguments:
   --glob-cls-id FLOAT   Minimum identity to cluster the refined dataset
-                        (default: 0.9)
+                        (default: 0.99)
   --glob-cls-cov FLOAT  Minimum coverage to cluster the refined dataset
                         (default: 0.9)
 
 fragment refinement arguments:
-  --frag-min-len INT    Minimum fragment length to keep (default: 1000)
+  --frag-min-len INT    Minimum fragment length to keep (default: 500)
   --frag-cls-id FLOAT   Minimum identity to cluster the fragments (default:
-                        0.95)
+                        0.9)
   --frag-cls-cov FLOAT  Minimum coverage to cluster the fragments (default:
                         0.6)
 ```
@@ -159,13 +159,13 @@ required arguments:
   --contigs FILE        Contig file to check for misassemblies
 
 overlap identification arguments:
-  --min-id FLOAT        Minimun id to use for the overlap (default: 95.0)
+  --min-id FLOAT        Minimun id to use for the overlap (default: 0.9)
   --min-cov FLOAT       Minimun percentage of the coverage for the overlap
                         (default: 0.25)
 
 global clustering arguments:
   --glob-cls-id FLOAT   Minimum identity to cluster the refined dataset
-                        (default: 0.9)
+                        (default: 0.99)
   --glob-cls-cov FLOAT  Minimum coverage to cluster the refined dataset
                         (default: 0.9)
 
@@ -174,7 +174,7 @@ minimus2 arguments:
   --mnm2-overlap INT    Assembly 1 vs 2 minimum overlap (default: 500)
   --mnm2-minid FLOAT    Minimum overlap percent identity for alignments
                         (default: 95.0)
-  --mnm2-maxtrim INT    Maximum sequence trimming length (default: 100)
+  --mnm2-maxtrim INT    Maximum sequence trimming length (default: 1000)
   --mnm2-conserr FLOAT  Maximum consensus error (default: 0.06)
 ```
 

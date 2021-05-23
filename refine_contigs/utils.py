@@ -97,23 +97,21 @@ def is_valid_file(parser, arg, var):
 defaults = {
     "tmp": "./tmp",
     "threads": 2,
-    "min_id": 95.0,
+    "min_id": 0.9,
     "min_cov": 0.25,
     "output": "contigs",
     "prefix": "contig",
-    "frag_min_len": 1000,
-    "frag_cls_id": 0.95,
+    "frag_min_len": 500,
+    "frag_cls_id": 0.9,
     "frag_cls_cov": 0.6,
-    "global_cls_id": 0.9,
+    "global_cls_id": 0.99,
     "global_cls_cov": 0.9,
     "minimus2_threads": 1,
     "minimus2_overlap": 500,
     "minimus2_minid": 95.0,
-    "minimus2_maxtrim": 100,
+    "minimus2_maxtrim": 1000,
     "minimus2_conserr": 0.06
 }
-
-
 
 help_msg = {
     "search_results": f"MMseqs2 search results",
@@ -218,7 +216,7 @@ def get_arguments(argv=None):
         "--min-id",
         metavar="FLOAT",
         type=lambda x: check_values(
-            x, minval=0, maxval=100, parser=parser, var="--min-id"
+            x, minval=0, maxval=1, parser=parser, var="--min-id"
         ),
         dest="min_id",
         default=defaults["min_id"],

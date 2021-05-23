@@ -42,6 +42,7 @@ def merge_contigs(args):
     prefix = args.prefix
     dname = str(uuid.uuid4())
     tmp_dir = pathlib.Path(args.tmp_dir, dname).absolute()
+    min_id = float(100.0 * args.min_id)
 
     if not os.path.isdir(tmp_dir):
         os.makedirs(tmp_dir, exist_ok=True)
@@ -71,7 +72,7 @@ def merge_contigs(args):
         tmp_dir=tmp_dir,
         max_seq_len=max_seq_len,
         threads=args.threads,
-        min_id=args.min_id,
+        min_id=min_id,
         min_cov=args.min_cov,
     )
 
@@ -96,7 +97,7 @@ def merge_contigs(args):
         # component = G_components[0]
         # For each component extrac aligned and non-aligned regions
         logging.info(
-            f"Trying to merge fragments with Minimus [id:{args.minimus2_minid}%; cov:{args.minimus2_overlap}]"
+            f"Trying to merge fragments with Minimus [id:{args.minimus2_minid}%; ovl:{args.minimus2_overlap}]"
         )
 
         parms = {
