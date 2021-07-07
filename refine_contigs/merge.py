@@ -27,7 +27,7 @@ from refine_contigs.utils import (
 )
 import gzip
 import networkx as nx
-import pathlib, os
+import pathlib, os, sys
 from Bio import SeqIO
 import uuid
 import pandas as pd
@@ -35,7 +35,7 @@ import pyfaidx
 
 log = logging.getLogger("my_logger")
 
-
+sys.setrecursionlimit(10**6)
 
 def merge_contigs(args):
     

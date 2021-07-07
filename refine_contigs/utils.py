@@ -318,7 +318,7 @@ def get_arguments(argv=None):
         "--mnm2-minid",
         metavar="FLOAT",
         type=lambda x: check_values(
-            x, minval=0, maxval=100, parser=parser, var="--min-id"
+            x, minval=0, maxval=100, parser=parser, var="--mnm2-minid"
         ),
         dest="minimus2_minid",
         default=defaults["minimus2_minid"],
@@ -336,7 +336,7 @@ def get_arguments(argv=None):
         "--mnm2-conserr",
         metavar="FLOAT",
         type=lambda x: check_values(
-            x, minval=0, maxval=1, parser=parser, var="--min-cov"
+            x, minval=0, maxval=1, parser=parser, var="--mnm2-conserr"
         ),
         default=defaults["minimus2_conserr"],
         help=help_msg["minimus2_conserr"],
@@ -379,9 +379,10 @@ def create_graph(results, min_id, min_cov):
     G = nx.Graph().to_undirected()
     M = nx.from_pandas_edgelist(
         results_filt,
-        edge_attr=["weight"],
+        edge_attr=["weight", "pident"],
         create_using=nx.MultiGraph(),
     )
+
     for u, v, data in M.edges(data=True):
         if not G.has_edge(u, v):
             # set weight to 1 if no weight is given for edge in M
