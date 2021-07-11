@@ -13,16 +13,18 @@ see <https://www.gnu.org/licenses/>.
 
 import logging
 from refine_contigs.utils import (
+    do_parallel,
     get_components,
     fasta_to_dataframe,
     fast_flatten,
     df_to_seq,
     dereplicate_fragments,
     combine_fragment_files,
-    get_components_par,
+    get_components_large,
     get_graph,
     process_alns_reg,
-    clean_up
+    clean_up,
+    concat_df
 )
 import gzip
 import networkx as nx
@@ -90,10 +92,13 @@ def split_contigs(args):
             .rename_axis("Chromosome")
             .reset_index()
         )
+
         ids_overlaps = fast_flatten([list(n.nodes()) for n in G_components])
+        ids_overlaps = sorted(ids_overlaps, key=len, reverse=True)
         # component = G_components[0]
         # For each component extrac aligned and non-aligned regions
         logging.info("Finding overlaps between contigs")
+
         parms = {
             "contigs": str(contigs_tmp),
             "results": results,
@@ -101,14 +106,57 @@ def split_contigs(args):
             "min_cov": args.min_cov,
             "contigs_len": contigs_len,
             "threads": args.threads,
+            "par": False
         }
 
-        aln_reg = get_components_par(
-            parms=parms,
-            components=G_components,
-            threads=args.threads,
-            func=process_alns_reg,
-        )
+        # Split components list by length of the components, longer components than 1K will
+        # be processed in parallel, while smaller ones while be sequential but many in parallel
+        logging.info(f"Splitting by large and small components")
+        min_size=50
+        G_components_small = sorted([ n for n in G_components if len(list(n.nodes())) < min_size ], key=len, reverse=True)
+        G_components_large = sorted([ n for n in G_components if len(list(n.nodes())) >= min_size ], key=len, reverse=True)
+
+        if (len(G_components_small) > 0):
+            logging.info(f"Processing {len(G_components_small)} small components")
+            aln_reg_small = do_parallel(
+                parms=parms,
+                lst=G_components_small,
+                threads=args.threads,
+                func=process_alns_reg,
+            )
+        else:
+            aln_reg_small = None
+        
+        parms = {
+            "contigs": str(contigs_tmp),
+            "results": results,
+            "min_id": min_id,
+            "min_cov": args.min_cov,
+            "contigs_len": contigs_len,
+            "threads": args.threads,
+            "par": True
+        }
+
+        if (len(G_components_large) > 0):
+            logging.info(f"Processing {len(G_components_large)} large components")
+            aln_reg_large = get_components_large(
+                parms=parms,
+                components=G_components_large,
+                threads=args.threads,
+                func=process_alns_reg,
+            )
+            if aln_reg_small is not None:
+                aln_reg = concat_df([aln_reg_small, aln_reg_large])
+            else:
+                aln_reg = aln_reg_large
+
+        else:
+            if aln_reg_small is not None:
+                aln_reg = aln_reg_small
+            else:
+                logging.info("Couldn't process any component")
+                exit(0)
+
         miss_contigs = aln_reg["Chromosome"].unique()
         miss_contigs_ovl = aln_reg["Class"].tolist().count("overlap")
         miss_contigs_novl = aln_reg["Class"].tolist().count("non-overlap")

@@ -13,13 +13,17 @@ see <https://www.gnu.org/licenses/>.
 
 
 import logging
+
+from networkx.algorithms import components
 from refine_contigs.utils import (
+    do_parallel,
+    do_parallel_lst,
     fasta_to_dataframe,
     fast_flatten,
     df_to_seq,
     dereplicate_fragments,
     get_components_clique,
-    get_components_par,
+    do_parallel,
     get_graph,
     process_minimus2,
     concat_df,
@@ -77,12 +81,36 @@ def merge_contigs(args):
     )
 
     if nx.number_connected_components(G) > 0:
+        logging.info(f"Getting largest cliques in each component")
         # Get components
-        G_components = get_components_clique(G)
+        if G.number_of_edges() >= 2:
+        # TODO: Check how many components do we have
+            n_comp = nx.number_connected_components(G)
+            if n_comp >= 1:
+                log.debug("Graph with {} component(s".format(n_comp))
+                components = sorted(nx.connected_components(G), key=len, reverse=True)
+                parms = {
+                    "G": G
+                }
+                G_components = do_parallel_lst(
+                    parms=parms,
+                    lst=components,
+                    threads=args.threads,
+                    func=get_components_clique,
+                )
+                #G_components = get_components_clique(G)
+            else:
+                log.debug("Skipping getting nodes in component")
+                G_components = [None]
+        elif G.number_of_edges() == 1:
+            G_components = fast_flatten([list(n.nodes()) for n in G])
+        else:
+            log.debug("Skipping getting nodes in component")
+            components = [None]
+
         if G_components.count(None) == len(G_components):
             logging.info("Couldn't find any component")
             exit(0)
-
         d = {
             name: f"comp-{k}"
             for k, comp in enumerate(list(G_components))
@@ -97,7 +125,7 @@ def merge_contigs(args):
         # component = G_components[0]
         # For each component extrac aligned and non-aligned regions
         logging.info(
-            f"Trying to merge fragments with Minimus [id:{args.minimus2_minid}%; ovl:{args.minimus2_overlap}]"
+            f"Trying to merge cliques with Minimus2 [id:{args.minimus2_minid}%; ovl:{args.minimus2_overlap}]"
         )
 
         parms = {
@@ -110,9 +138,9 @@ def merge_contigs(args):
             "conserr": args.minimus2_conserr,
         }
 
-        mn2_res = get_components_par(
+        mn2_res = do_parallel(
             parms=parms,
-            components=G_components,
+            lst=G_components,
             threads=args.threads,
             func=process_minimus2,
         )

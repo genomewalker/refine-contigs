@@ -5,7 +5,6 @@ import os
 import pathlib
 import shutil
 import logging
-from networkx.algorithms.components.connected import connected_components
 import pandas as pd
 from multiprocessing import Pool
 from functools import partial
@@ -20,7 +19,6 @@ import pathlib
 import uuid
 import subprocess
 from itertools import chain
-from networkx.algorithms.approximation import clique
 from statistics import mean
 import pyranges as pr
 
@@ -405,33 +403,20 @@ def create_graph(results, min_id, min_cov):
     isolated = list(nx.isolates(G))
     G.remove_nodes_from(isolated)
 
-    return G
+    return G,results[results["pident"] >= min_id]
 
 
-def get_components_clique(G):
-    components = []
-    if G.number_of_edges() >= 2:
-        # TODO: Check how many components do we have
-        n_comp = nx.number_connected_components(G)
-        if n_comp >= 1:
-            log.debug("Graph with {} component(s".format(n_comp))
-            for component in sorted(nx.connected_components(G), key=len, reverse=True):
-                component_sg = G.subgraph(component)
-                if component_sg.number_of_nodes() > 1:
-                    clq = list(clique.max_clique(component_sg))
-                    component_sg_clq = component_sg.subgraph(clq)
-                    components.append(component_sg_clq.copy())
-        else:
-            log.debug("Skipping getting nodes in component")
-            components = [None]
-    elif G.number_of_edges() == 1:
-        components.append(G.copy())
+def get_components_clique(comp, parms):
+    component_sg = parms["G"].subgraph(comp)
+    if component_sg.number_of_nodes() > 1:
+        #clq = list(clique.max_clique(component_sg))
+        clq = list(max(nx.algorithms.clique.find_cliques(component_sg), key = len))
+        component_sg_clq = component_sg.subgraph(clq)
+        return component_sg_clq
     else:
-        log.debug("Skipping getting nodes in component")
-        components = [None]
-    # partition = community_louvain.best_partition(G_filt, resolution=1.0)
-    return components
-
+        return None
+        #components.append(component_sg_clq.copy())
+    
 
 def get_components(G):
     components = []
@@ -546,6 +531,55 @@ def aligned_regions(
     parms = {"alns": results_filt, "contigs": contigs, "contigs_len": contigs_len}
 
     dfs = list(map(partial(process_alns, parms=parms), ids))
+
+    dfs = concat_df(dfs)
+    return dfs
+
+
+def aligned_regions_par(
+    contigs, results, component, min_cov, min_id, contigs_len, threads=1
+):
+    ids = list(component.nodes())
+    results_filt = results[
+        (results["source"].isin(ids))
+        & (results["target"].isin(ids))
+        & (results["qcov"] >= min_cov)
+        & (results["pident"] >= min_id)
+        & (results["source"] != results["target"])
+    ][
+        [
+            "source",
+            "target",
+            "pident",
+            "alnlen",
+            "qstart",
+            "qend",
+            "tstart",
+            "tend",
+            "qlen",
+            "tlen",
+        ]
+    ].copy()
+
+    parms = {"alns": results_filt, "contigs": contigs, "contigs_len": contigs_len}
+
+    if is_debug():
+        dfs = list(map(partial(process_alns, parms=parms), ids))
+    else:
+        p = Pool(threads, initializer=initializer, initargs=(parms,))
+        c_size = calc_chunksize(threads, len(ids))
+        dfs = list(
+            tqdm.tqdm(
+                p.imap_unordered(
+                        partial(process_alns, parms=parms),
+                        ids,
+                        chunksize=c_size),
+                total=len(ids),
+                leave=False,
+                ncols=80,
+                desc=f"Contigs processed"
+                )
+        )
 
     dfs = concat_df(dfs)
     return dfs
@@ -762,38 +796,33 @@ def dereplicate_fragments(frags, threads, tmp_dir, cls_step, cls_id=0.9, cls_cov
     )
     return mmseqs_fasta_derep, mmseqs_tsv_derep
 
-
-
-
 def process_alns_reg(component, parms):
-    res = aligned_regions(
-        component=component,
-        contigs=parms["contigs"],
-        results=parms["results"],
-        min_id=parms["min_id"],
-        min_cov=parms["min_cov"],
-        contigs_len=parms["contigs_len"],
-        threads=parms["threads"],
-    )
+    if parms["par"] is False:
+        res = aligned_regions(
+            component=component,
+            contigs=parms["contigs"],
+            results=parms["results"],
+            min_id=parms["min_id"],
+            min_cov=parms["min_cov"],
+            contigs_len=parms["contigs_len"],
+            threads=parms["threads"],
+        )
+    else:
+        res = aligned_regions_par(
+            component=component,
+            contigs=parms["contigs"],
+            results=parms["results"],
+            min_id=parms["min_id"],
+            min_cov=parms["min_cov"],
+            contigs_len=parms["contigs_len"],
+            threads=parms["threads"],
+        )
     return res
 
 
-def get_graph(contigs, tmp_dir, max_seq_len, threads, min_id, min_cov):
-    """
-    Run mmseqs2
-    """
-    mmseqs2_res = run_mmseqs2(
-        contigs=contigs,
-        tmp_dir=tmp_dir,
-        max_seq_len=max_seq_len,
-        threads=threads,
-    )
-
-    """
-    Read file with mmseqs2 results
-    """
+def read_mmseqs2(res):
     results = pd.read_csv(
-        mmseqs2_res,
+        res,
         sep="\t",
     )
     results.columns = [
@@ -814,10 +843,29 @@ def get_graph(contigs, tmp_dir, max_seq_len, threads, min_id, min_cov):
         "qcov",
         "tcov",
     ]
+    return results
 
+def get_graph(contigs, tmp_dir, max_seq_len, threads, min_id, min_cov):
+    """
+    Run mmseqs2
+    """
+    mmseqs2_res = run_mmseqs2(
+        contigs=contigs,
+        tmp_dir=tmp_dir,
+        max_seq_len=max_seq_len,
+        threads=threads,
+    )
+
+    """
+    Read file with mmseqs2 results
+    """
+    logging.info("Importing all-vs-all results")
+    results = read_mmseqs2(mmseqs2_res)
+    logging.info(f"Read {len(results.index)} entries")
     # aln_seqs = get_alignments(results=results, min_id=args.min_id, min_cov=args.min_cov, contigs=contigs)
 
-    G = create_graph(results=results, min_id=min_id, min_cov=min_cov)
+    logging.info("Creating graph from all-vs-all results")
+    G, results_filt = create_graph(results=results, min_id=min_id, min_cov=min_cov)
     log.info(
         "Graph properties: nodes={} edges={} density={} components={}".format(
             G.number_of_nodes(),
@@ -826,37 +874,64 @@ def get_graph(contigs, tmp_dir, max_seq_len, threads, min_id, min_cov):
             nx.number_connected_components(G),
         )
     )
-    return G, results
+    return G, results_filt
 
+def initializer(init_data):
+    global parms
+    parms = init_data
 
-def get_components_par(parms, components, func, threads):
+def do_parallel(parms, lst, func, threads):
     if is_debug():
-        dfs = list(map(partial(func, parms=parms), components))
+        dfs = list(map(partial(func, parms=parms), lst))
     else:
-        p = Pool(threads)
-        if len(components) > 1000:
-            c_size = int((len(components) / 100))
-        else:
-            c_size = int((len(components) / threads))
-            if c_size == 0:
-                c_size = 1
+        p = Pool(threads, initializer=initializer, initargs=(parms,))
+        c_size = calc_chunksize(threads, len(lst))
         dfs = list(
             tqdm.tqdm(
                 p.imap_unordered(
                     partial(func, parms=parms),
-                    components,
+                    lst,
                     chunksize=c_size,
                 ),
-                total=len(components),
+                total=len(lst),
                 leave=False,
                 ncols=80,
+                desc=f"Components processed"
             )
         )
     return concat_df(dfs)
 
+def do_parallel_lst(parms, lst, func, threads):
+    if is_debug():
+        lst = list(map(partial(func, parms=parms), lst))
+    else:
+        p = Pool(threads, initializer=initializer, initargs=(parms,))
+        c_size = calc_chunksize(threads, len(lst))
+        lst = list(
+            tqdm.tqdm(
+                p.imap_unordered(
+                    partial(func, parms=parms),
+                    lst,
+                    chunksize=c_size,
+                ),
+                total=len(lst),
+                leave=False,
+                ncols=80,
+                desc=f"Components processed"
+            )
+        )
+    return lst
 
 
-
+def get_components_large(parms, components, func, threads):
+    dfs = list(tqdm.tqdm(
+        map(partial(func, parms=parms), components),
+        total=len(components),
+        leave=False,
+        ncols=80,
+        desc=f"Components processed"
+            ))
+    return concat_df(dfs)
 
 def combine_fragment_files(df1, df2, ids):
     dfs = fasta_to_dataframe(df1)
@@ -875,3 +950,14 @@ def clean_up(keep, temp_dir):
         logging.info("Cleaning up temporary files")
         logging.shutdown()
         shutil.rmtree(temp_dir, ignore_errors=True)
+
+# from https://stackoverflow.com/questions/53751050/python-multiprocessing-understanding-logic-behind-chunksize/54032744#54032744
+def calc_chunksize(n_workers, len_iterable, factor=4):
+    """Calculate chunksize argument for Pool-methods.
+
+    Resembles source-code within `multiprocessing.pool.Pool._map_async`.
+    """
+    chunksize, extra = divmod(len_iterable, n_workers * factor)
+    if extra:
+        chunksize += 1
+    return chunksize
