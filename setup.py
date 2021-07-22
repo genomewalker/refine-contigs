@@ -9,7 +9,8 @@ requirements = [
     "PyYAML>=5.4",
     "biopython>=1.77",
     "pyfaidx>=0.5.9",
-    "pyranges>=0.0.97",
+    "pyranges>=0.0.101",
+    "ncls>=0.0.50"
 ]
 
 setup(
