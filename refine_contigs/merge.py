@@ -103,7 +103,7 @@ def merge_contigs(args):
                 log.debug("Skipping getting nodes in component")
                 G_components = [None]
         elif G.number_of_edges() == 1:
-            G_components = fast_flatten([list(n.nodes()) for n in G])
+            G_components = [G]
         else:
             log.debug("Skipping getting nodes in component")
             components = [None]
@@ -121,7 +121,11 @@ def merge_contigs(args):
             .rename_axis("Chromosome")
             .reset_index()
         )
-        ids_overlaps = fast_flatten([list(n.nodes()) for n in G_components])
+
+        if len(G_components) > 1:
+            ids_overlaps = fast_flatten([list(n.nodes()) for n in G_components])
+        else:
+            ids_overlaps = fast_flatten([list(G.nodes())])
         # component = G_components[0]
         # For each component extrac aligned and non-aligned regions
         logging.info(
