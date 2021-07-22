@@ -74,7 +74,7 @@ SHOWCOORDS	= ${CONDA_PREFIX}/bin/show-coords
 
 ## Running consensus
 40: rm -f $(BANK)/CTG.*
-41: $(BINDIR)/make-consensus_poly -B -e $(CONSERR) -b $(BANK) #-w $(WIGGLE) 
+41: $(BINDIR)//make-consensus -B -e $(CONSERR) -b $(BANK) -w $(WIGGLE)  
 
 ## Outputting contigs
 50: $(BINDIR)/bank2contig $(BANK) > $(CONTIG)
