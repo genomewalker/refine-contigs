@@ -224,8 +224,10 @@ def split_contigs(args):
         logging.info(f"Saving contigs to {fname} file")
         with gzip.open(fname, "wt") as handle:
             SeqIO.write(seq_records, handle, "fasta")
-
-        cls_frag = pd.read_csv(derep_tsv_frag, sep="\t", names=["rep_fragment", "name"])
+        if pathlib.Path(derep_tsv_frag).exists():
+            cls_frag = pd.read_csv(derep_tsv_frag, sep="\t", names=["rep_fragment", "name"])
+        else:
+            cls_frag = pd.DataFrame(columns=["rep_fragment", "name"])
         cls_global = pd.read_csv(
             derep_tsv_global, sep="\t", names=["rep_global", "name"]
         )

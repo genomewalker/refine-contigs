@@ -934,15 +934,16 @@ def get_components_large(parms, components, func, threads):
     return concat_df(dfs)
 
 def combine_fragment_files(df1, df2, ids):
-    dfs = fasta_to_dataframe(df1)
-    # to_include = derep[~derep["name"].isin(ids_components)].copy()
-    # to_include["m_type"] = "added"
-    # dfs = concat_df([dfs, to_include])
+
     to_include = df2[~df2["name"].isin(ids)].copy()
     to_include["m_type"] = "added"
-    dfs = concat_df([dfs, to_include])
-    # dfs["name"] = dfs.index
-    # dfs["name"] = dfs["name"].apply(lambda x: f"{name_str}_{x:012d}", 1)
+
+    if pathlib.Path(df1).exists():
+        dfs = fasta_to_dataframe(df1)
+
+        dfs = concat_df([dfs, to_include])
+    else:
+        dfs = to_include
     return dfs
 
 def clean_up(keep, temp_dir):
