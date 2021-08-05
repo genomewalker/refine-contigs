@@ -651,13 +651,17 @@ def stitch_contigs(
         threads=threads,
         conserr=conserr,
     )
-    seqs = fasta_to_dataframe(seq)
-    seqs["m_type"] = str("merged")
-    seqs["name"] = seqs["name"].apply(lambda x: f"merged-{int(x):012d}", 1)
-    sglt = fasta_to_dataframe(singletons)
-    sglt["m_type"] = str("singleton")
-
-    return concat_df([seqs, sglt])
+    if seq.is_file() & singletons.is_file():
+        seqs = fasta_to_dataframe(seq)
+        seqs["m_type"] = str("merged")
+        seqs["name"] = seqs["name"].apply(lambda x: f"merged-{int(x):012d}", 1)
+        sglt = fasta_to_dataframe(singletons)
+        sglt["m_type"] = str("singleton")
+        data = concat_df([seqs, sglt])
+    else:
+        data = fasta_to_dataframe(outfile)
+        data["m_type"] = str("non-merged")
+    return data
 
 
 def fast_flatten(input_list):
