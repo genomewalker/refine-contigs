@@ -24,7 +24,7 @@ from refine_contigs.utils import (
     get_graph,
     process_alns_reg,
     clean_up,
-    concat_df
+    concat_df,
 )
 import gzip
 import networkx as nx
@@ -36,7 +36,8 @@ import pyfaidx
 
 log = logging.getLogger("my_logger")
 
-sys.setrecursionlimit(10**6)
+sys.setrecursionlimit(10 ** 6)
+
 
 def split_contigs(args):
 
@@ -106,17 +107,25 @@ def split_contigs(args):
             "min_cov": args.min_cov,
             "contigs_len": contigs_len,
             "threads": args.threads,
-            "par": False
+            "par": False,
         }
 
         # Split components list by length of the components, longer components than 1K will
         # be processed in parallel, while smaller ones while be sequential but many in parallel
         logging.info(f"Splitting by large and small components")
-        min_size=50
-        G_components_small = sorted([ n for n in G_components if len(list(n.nodes())) < min_size ], key=len, reverse=True)
-        G_components_large = sorted([ n for n in G_components if len(list(n.nodes())) >= min_size ], key=len, reverse=True)
+        min_size = 50
+        G_components_small = sorted(
+            [n for n in G_components if len(list(n.nodes())) < min_size],
+            key=len,
+            reverse=True,
+        )
+        G_components_large = sorted(
+            [n for n in G_components if len(list(n.nodes())) >= min_size],
+            key=len,
+            reverse=True,
+        )
 
-        if (len(G_components_small) > 0):
+        if len(G_components_small) > 0:
             logging.info(f"Processing {len(G_components_small)} small components")
             aln_reg_small = do_parallel(
                 parms=parms,
@@ -126,7 +135,7 @@ def split_contigs(args):
             )
         else:
             aln_reg_small = None
-        
+
         parms = {
             "contigs": str(contigs_tmp),
             "results": results,
@@ -134,10 +143,10 @@ def split_contigs(args):
             "min_cov": args.min_cov,
             "contigs_len": contigs_len,
             "threads": args.threads,
-            "par": True
+            "par": True,
         }
 
-        if (len(G_components_large) > 0):
+        if len(G_components_large) > 0:
             logging.info(f"Processing {len(G_components_large)} large components")
             aln_reg_large = get_components_large(
                 parms=parms,
@@ -225,7 +234,9 @@ def split_contigs(args):
         with gzip.open(fname, "wt") as handle:
             SeqIO.write(seq_records, handle, "fasta")
         if pathlib.Path(derep_tsv_frag).exists():
-            cls_frag = pd.read_csv(derep_tsv_frag, sep="\t", names=["rep_fragment", "name"])
+            cls_frag = pd.read_csv(
+                derep_tsv_frag, sep="\t", names=["rep_fragment", "name"]
+            )
         else:
             cls_frag = pd.DataFrame(columns=["rep_fragment", "name"])
         cls_global = pd.read_csv(

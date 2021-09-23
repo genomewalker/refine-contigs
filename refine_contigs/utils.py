@@ -108,7 +108,7 @@ defaults = {
     "minimus2_overlap": 500,
     "minimus2_minid": 95.0,
     "minimus2_maxtrim": 1000,
-    "minimus2_conserr": 0.06
+    "minimus2_conserr": 0.06,
 }
 
 help_msg = {
@@ -153,7 +153,10 @@ def get_arguments(argv=None):
     )
 
     # Same subparsers as usual
-    sub_parsers = parser.add_subparsers(help="positional arguments", dest="action",)
+    sub_parsers = parser.add_subparsers(
+        help="positional arguments",
+        dest="action",
+    )
 
     # Create parent subparser. Note `add_help=False` and creation via `argparse.`
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -168,7 +171,7 @@ def get_arguments(argv=None):
         default=defaults["tmp"],
         metavar="DIR",
         dest="tmp_dir",
-        help=help_msg["tmp"]
+        help=help_msg["tmp"],
     )
     optional.add_argument(
         "--threads",
@@ -264,7 +267,6 @@ def get_arguments(argv=None):
 
     cls_args = parser_split.add_argument_group("final clustering arguments")
     minimus2 = parser_merge.add_argument_group("minimus2 arguments")
-
 
     frag_args.add_argument(
         "--frag-min-len",
@@ -405,20 +407,20 @@ def create_graph(results, min_id, min_cov):
     isolated = list(nx.isolates(G))
     G.remove_nodes_from(isolated)
 
-    return G,results[results["pident"] >= min_id]
+    return G, results[results["pident"] >= min_id]
 
 
 def get_components_clique(comp, parms):
     component_sg = parms["G"].subgraph(comp)
     if component_sg.number_of_nodes() > 1:
-        #clq = list(clique.max_clique(component_sg))
-        clq = list(max(nx.algorithms.clique.find_cliques(component_sg), key = len))
+        # clq = list(clique.max_clique(component_sg))
+        clq = list(max(nx.algorithms.clique.find_cliques(component_sg), key=len))
         component_sg_clq = component_sg.subgraph(clq)
         return component_sg_clq
     else:
         return None
-        #components.append(component_sg_clq.copy())
-    
+        # components.append(component_sg_clq.copy())
+
 
 def get_components(G):
     components = []
@@ -573,14 +575,13 @@ def aligned_regions_par(
         dfs = list(
             tqdm.tqdm(
                 p.imap_unordered(
-                        partial(process_alns, parms=parms),
-                        ids,
-                        chunksize=c_size),
+                    partial(process_alns, parms=parms), ids, chunksize=c_size
+                ),
                 total=len(ids),
                 leave=False,
                 ncols=80,
-                desc=f"Contigs processed"
-                )
+                desc=f"Contigs processed",
+            )
         )
         p.close()
         p.join()
@@ -611,6 +612,7 @@ def df_to_seq(df):
         seq_records.append(record)
     return seq_records
 
+
 def process_minimus2(component, parms):
     res = stitch_contigs(
         component=component,
@@ -623,6 +625,7 @@ def process_minimus2(component, parms):
         threads=parms["threads"],
     )
     return res
+
 
 def stitch_contigs(
     component,
@@ -804,6 +807,7 @@ def dereplicate_fragments(frags, threads, tmp_dir, cls_step, cls_id=0.9, cls_cov
     )
     return mmseqs_fasta_derep, mmseqs_tsv_derep
 
+
 def process_alns_reg(component, parms):
     if parms["par"] is False:
         res = aligned_regions(
@@ -853,6 +857,7 @@ def read_mmseqs2(res):
     ]
     return results
 
+
 def get_graph(contigs, tmp_dir, max_seq_len, threads, min_id, min_cov):
     """
     Run mmseqs2
@@ -884,9 +889,11 @@ def get_graph(contigs, tmp_dir, max_seq_len, threads, min_id, min_cov):
     )
     return G, results_filt
 
+
 def initializer(init_data):
     global parms
     parms = init_data
+
 
 def do_parallel(parms, lst, func, threads):
     if is_debug():
@@ -904,12 +911,13 @@ def do_parallel(parms, lst, func, threads):
                 total=len(lst),
                 leave=False,
                 ncols=80,
-                desc=f"Components processed"
+                desc=f"Components processed",
             )
         )
         p.close()
         p.join()
     return concat_df(dfs)
+
 
 def do_parallel_lst(parms, lst, func, threads):
     if is_debug():
@@ -927,7 +935,7 @@ def do_parallel_lst(parms, lst, func, threads):
                 total=len(lst),
                 leave=False,
                 ncols=80,
-                desc=f"Components processed"
+                desc=f"Components processed",
             )
         )
 
@@ -935,14 +943,17 @@ def do_parallel_lst(parms, lst, func, threads):
 
 
 def get_components_large(parms, components, func, threads):
-    dfs = list(tqdm.tqdm(
-        map(partial(func, parms=parms), components),
-        total=len(components),
-        leave=False,
-        ncols=80,
-        desc=f"Components processed"
-            ))
+    dfs = list(
+        tqdm.tqdm(
+            map(partial(func, parms=parms), components),
+            total=len(components),
+            leave=False,
+            ncols=80,
+            desc=f"Components processed",
+        )
+    )
     return concat_df(dfs)
+
 
 def combine_fragment_files(df1, df2, ids):
 
@@ -957,11 +968,13 @@ def combine_fragment_files(df1, df2, ids):
         dfs = to_include
     return dfs
 
+
 def clean_up(keep, temp_dir):
     if keep:
         logging.info("Cleaning up temporary files")
         logging.shutdown()
         shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 # from https://stackoverflow.com/questions/53751050/python-multiprocessing-understanding-logic-behind-chunksize/54032744#54032744
 def calc_chunksize(n_workers, len_iterable, factor=4):

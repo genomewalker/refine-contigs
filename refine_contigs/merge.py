@@ -27,7 +27,7 @@ from refine_contigs.utils import (
     get_graph,
     process_minimus2,
     concat_df,
-    clean_up
+    clean_up,
 )
 import gzip
 import networkx as nx
@@ -39,10 +39,11 @@ import pyfaidx
 
 log = logging.getLogger("my_logger")
 
-sys.setrecursionlimit(10**6)
+sys.setrecursionlimit(10 ** 6)
+
 
 def merge_contigs(args):
-    
+
     prefix = args.prefix
     dname = str(uuid.uuid4())
     tmp_dir = pathlib.Path(args.tmp_dir, dname).absolute()
@@ -84,21 +85,19 @@ def merge_contigs(args):
         logging.info(f"Getting largest cliques in each component")
         # Get components
         if G.number_of_edges() >= 2:
-        # TODO: Check how many components do we have
+            # TODO: Check how many components do we have
             n_comp = nx.number_connected_components(G)
             if n_comp >= 1:
                 log.debug("Graph with {} component(s".format(n_comp))
                 components = sorted(nx.connected_components(G), key=len, reverse=True)
-                parms = {
-                    "G": G
-                }
+                parms = {"G": G}
                 G_components = do_parallel_lst(
                     parms=parms,
                     lst=components,
                     threads=args.threads,
                     func=get_components_clique,
                 )
-                #G_components = get_components_clique(G)
+                # G_components = get_components_clique(G)
             else:
                 log.debug("Skipping getting nodes in component")
                 G_components = [None]
@@ -160,7 +159,7 @@ def merge_contigs(args):
         ids_components = fast_flatten([list(n.nodes()) for n in G_components])
         to_include = contigs[~contigs["name"].isin(ids_components)].copy()
         to_include["m_type"] = "added"
-        
+
         mn2_df = concat_df([mn2_res, to_include])
         mn2_df["old_name"] = mn2_df["name"]
         mn2_df["name"] = mn2_df.index
@@ -181,9 +180,9 @@ def merge_contigs(args):
         )
 
         dfs = fasta_to_dataframe(derep_global)
-        #dfs["old_name"] = dfs["name"]
-        #dfs["name"] = dfs.index
-        #dfs["name"] = dfs["name"].apply(lambda x: f"{prefix}_mn_{x:012d}", 1)
+        # dfs["old_name"] = dfs["name"]
+        # dfs["name"] = dfs.index
+        # dfs["name"] = dfs["name"].apply(lambda x: f"{prefix}_mn_{x:012d}", 1)
 
         seq_records = df_to_seq(dfs)
 
@@ -198,15 +197,14 @@ def merge_contigs(args):
 
         contigs_names = contigs[["name", "name_original"]]
         contigs_names.columns = ["old_name", "name_original"]
-        
-        mappings = (
-            pd.merge(right=contigs_names,
+
+        mappings = pd.merge(
+            right=contigs_names,
             left=mn2_df[["name", "old_name", "m_type", "length"]],
-            how="left")
-            .merge(
-                right=cls_global,
-                how="left",
-            )
+            how="left",
+        ).merge(
+            right=cls_global,
+            how="left",
         )
 
         mappings.columns = [

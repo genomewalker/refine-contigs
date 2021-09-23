@@ -36,7 +36,8 @@ def main():
     if args.action == "split":
         split_contigs(args)
     elif args.action == "merge":
-         merge_contigs(args)
+        merge_contigs(args)
+
 
 if __name__ == "__main__":
     main()
