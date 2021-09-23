@@ -359,6 +359,8 @@ def applyParallel(dfGrouped, func, threads, parms):
         p.map(func, [group for name, group in dfGrouped]),
         total=len([group for name, group in dfGrouped]),
     )
+    p.close()
+    p.join()
     return pd.concat(ret_list)
 
 
@@ -580,6 +582,8 @@ def aligned_regions_par(
                 desc=f"Contigs processed"
                 )
         )
+        p.close()
+        p.join()
 
     dfs = concat_df(dfs)
     return dfs
@@ -903,6 +907,8 @@ def do_parallel(parms, lst, func, threads):
                 desc=f"Components processed"
             )
         )
+        p.close()
+        p.join()
     return concat_df(dfs)
 
 def do_parallel_lst(parms, lst, func, threads):
@@ -924,6 +930,7 @@ def do_parallel_lst(parms, lst, func, threads):
                 desc=f"Components processed"
             )
         )
+
     return lst
 
 
