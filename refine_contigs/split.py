@@ -23,6 +23,7 @@ from refine_contigs.utils import (
     get_components_large,
     get_graph,
     process_alns_reg,
+    get_seqs,
     clean_up,
     concat_df,
 )
@@ -33,6 +34,8 @@ from Bio import SeqIO
 import uuid
 import pandas as pd
 import pyfaidx
+import datatable as dt
+import numpy as np
 
 log = logging.getLogger("my_logger")
 
@@ -40,6 +43,8 @@ sys.setrecursionlimit(10 ** 6)
 
 
 def split_contigs(args):
+    dt.options.progress.clear_on_success = True
+    dt.options.nthreads = args.threads
 
     prefix = args.prefix
     dname = str(uuid.uuid4())
@@ -56,7 +61,7 @@ def split_contigs(args):
     contigs["name"] = contigs["name"].apply(lambda x: f"{prefix}_{x:012d}", 1)
     contigs["length"] = contigs.sequence.map(len)
 
-    logging.info(f"Read and processed {len(contigs.index)} contigs")
+    logging.info(f"Read and processed {len(contigs.index):,} contigs")
     contigs_tmp = pathlib.Path(tmp_dir, dname).with_suffix(".fasta")
     seq_records = df_to_seq(contigs[["name", "sequence"]])
     with open(contigs_tmp, "w") as handle:
@@ -100,10 +105,29 @@ def split_contigs(args):
         # For each component extrac aligned and non-aligned regions
         logging.info("Finding overlaps between contigs")
 
+        results_filt = results[
+            (dt.f.qcov >= args.min_cov)
+            & (dt.f.pident >= args.min_id)
+            & (dt.f.source != dt.f.target),
+            [
+                "source",
+                "target",
+                "pident",
+                "alnlen",
+                "qstart",
+                "qend",
+                "tstart",
+                "tend",
+                "qcov",
+                "qlen",
+                "tlen",
+            ],
+        ].to_pandas()
+
         parms = {
             "contigs": str(contigs_tmp),
-            "results": results,
-            "min_id": min_id,
+            "results": results_filt,
+            "min_id": args.min_id,
             "min_cov": args.min_cov,
             "contigs_len": contigs_len,
             "threads": args.threads,
@@ -126,19 +150,30 @@ def split_contigs(args):
         )
 
         if len(G_components_small) > 0:
-            logging.info(f"Processing {len(G_components_small)} small components")
+            logging.info(f"Processing {len(G_components_small):,} small components")
             aln_reg_small = do_parallel(
                 parms=parms,
                 lst=G_components_small,
                 threads=args.threads,
                 func=process_alns_reg,
             )
+            chunks = np.array_split(aln_reg_small, args.threads)
+            parms = {
+                "contigs": str(contigs_tmp),
+                "chunks": chunks,
+            }
+            aln_reg_small = do_parallel(
+                parms=parms,
+                lst=list(range(0, args.threads)),
+                threads=args.threads,
+                func=get_seqs,
+            )
         else:
             aln_reg_small = None
 
         parms = {
             "contigs": str(contigs_tmp),
-            "results": results,
+            "results": results_filt,
             "min_id": min_id,
             "min_cov": args.min_cov,
             "contigs_len": contigs_len,
@@ -147,12 +182,23 @@ def split_contigs(args):
         }
 
         if len(G_components_large) > 0:
-            logging.info(f"Processing {len(G_components_large)} large components")
+            logging.info(f"Processing {len(G_components_large):,} large components")
             aln_reg_large = get_components_large(
                 parms=parms,
                 components=G_components_large,
                 threads=args.threads,
                 func=process_alns_reg,
+            )
+            chunks = np.array_split(aln_reg_large, args.threads)
+            parms = {
+                "contigs": str(contigs_tmp),
+                "chunks": chunks,
+            }
+            aln_reg_large = do_parallel(
+                parms=parms,
+                lst=list(range(0, args.threads)),
+                threads=args.threads,
+                func=get_seqs,
             )
             if aln_reg_small is not None:
                 aln_reg = concat_df([aln_reg_small, aln_reg_large])
@@ -177,7 +223,7 @@ def split_contigs(args):
         )
         miss_contigs_ovl_nt_prop = 100 * (miss_contigs_ovl_nt / assm_len)
         logging.info(
-            f"Found {miss_contigs_ovl} overlaps in {len(miss_contigs)} contigs ({miss_contigs_ovl_nt_prop:.2f}% of the assembly)"
+            f"Found {miss_contigs_ovl:,} overlaps in {len(miss_contigs):,} contigs ({miss_contigs_ovl_nt_prop:.2f}% of the assembly)"
         )
 
         aln_reg_fname = f"{args.output}.split.overlaps.tsv.gz"
@@ -294,7 +340,9 @@ def split_contigs(args):
 
         comp_fname = f"{args.output}.split.all-vs-all.tsv.gz"
         logging.info(f"Saving all-vs-all comparison to {comp_fname} file")
-        results.to_csv(comp_fname, sep="\t", compression="gzip", index=False)
+        results.to_pandas().to_csv(
+            comp_fname, sep="\t", compression="gzip", index=False
+        )
 
         g_fname = f"{args.output}.split.graph-edgelist.tsv.gz"
         logging.info(f"Saving graph edgelist to {g_fname} file")

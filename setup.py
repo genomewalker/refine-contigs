@@ -11,6 +11,7 @@ requirements = [
     "pyfaidx>=0.5.9",
     "pyranges==0.0.110",
     "ncls==0.0.62",
+    "datatable>=1.0.0",
 ]
 
 setup(
