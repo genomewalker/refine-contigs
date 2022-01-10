@@ -21,10 +21,14 @@ import subprocess
 from itertools import chain
 from statistics import mean
 import pyranges as pr
+import datatable as dt
+
 
 log = logging.getLogger("my_logger")
 log.setLevel(logging.INFO)
 timestr = time.strftime("%Y%m%d-%H%M%S")
+
+dt.options.progress.clear_on_success = True
 
 
 def is_debug():
@@ -371,13 +375,12 @@ def connected_component_subgraphs(G):
         yield G.subgraph(c)
 
 
-def create_graph(results, min_id, min_cov):
-    log.debug("Filtering graph with min-id {} and min-cov {}".format(min_id, min_cov))
-    results_filt = results[results["pident"] >= min_id][
-        ["source", "target", "pident", "qcov"]
-    ]
+def create_graph(results, min_id, min_cov, threads):
+    dt.options.nthreads = threads
+    results_filt = results[
+        dt.f.pident >= min_id, dt.f["source", "target", "pident", "qcov"]
+    ].to_pandas()
     results_filt.columns = ["source", "target", "pident", "weight"]
-
     G = nx.Graph().to_undirected()
     M = nx.from_pandas_edgelist(
         results_filt,
@@ -398,8 +401,10 @@ def create_graph(results, min_id, min_cov):
             G.add_edge(
                 u, v, weight=weight, weight_avg=weight_avg, pident_avg=pident_avg
             )
+    log.debug(
+        "::: Removing edges graph with min-id {} and min-cov {}".format(min_id, min_cov)
+    )
     G.remove_edges_from(list(nx.selfloop_edges(G)))
-    # Identify isolated nodes
     edges2rm = [
         (u, v) for u, v, d in G.edges(data=True) if float(d["weight"]) < float(min_cov)
     ]
@@ -407,7 +412,10 @@ def create_graph(results, min_id, min_cov):
     isolated = list(nx.isolates(G))
     G.remove_nodes_from(isolated)
 
-    return G, results[results["pident"] >= min_id]
+    return (
+        G,
+        results[dt.f.pident >= min_id, :],
+    )
 
 
 def get_components_clique(comp, parms):
@@ -478,6 +486,7 @@ def get_best_aln(alns, ref, contigs, contigs_len):
     alns = alns[(alns["source"] == ref) | (alns["target"] == ref)][
         ["source", "target", "qstart", "qend", "tstart", "tend"]
     ].copy()
+
     aln = alns.apply(get_coords, ref=ref, axis=1)[
         ["Chromosome", "Start", "End", "Strand"]
     ]
@@ -492,8 +501,8 @@ def get_best_aln(alns, ref, contigs, contigs_len):
     aln.Class = "overlap"
     aln2 = pr.concat([aln, aln1])
     aln2.length = aln2.lengths()
-    seqs = pr.get_fasta(aln2, contigs)
-    aln2.sequence = seqs
+    # seqs = pr.get_fasta(aln2, contigs)
+    # aln2.sequence = seqs
     return aln2.df
 
 
@@ -514,8 +523,8 @@ def aligned_regions(
     results_filt = results[
         (results["source"].isin(ids))
         & (results["target"].isin(ids))
-        & (results["qcov"] >= min_cov)
-        & (results["pident"] >= min_id)
+        # & (results["qcov"] >= min_cov)
+        # & (results["pident"] >= min_id)
         & (results["source"] != results["target"])
     ][
         [
@@ -547,8 +556,8 @@ def aligned_regions_par(
     results_filt = results[
         (results["source"].isin(ids))
         & (results["target"].isin(ids))
-        & (results["qcov"] >= min_cov)
-        & (results["pident"] >= min_id)
+        # & (results["qcov"] >= min_cov)
+        # & (results["pident"] >= min_id)
         & (results["source"] != results["target"])
     ][
         [
@@ -734,7 +743,7 @@ def run_mmseqs2(contigs, tmp_dir, max_seq_len, threads):
         mmseqs_createdb_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT
     )
 
-    logging.info(f"Computing all-vs-all contig search [Max seq len: {max_seq_len}]")
+    logging.info(f"Computing all-vs-all contig search [Max seq len: {max_seq_len:,}]")
     mmseqs2_search_cmd = [
         "mmseqs",
         "easy-search",
@@ -832,30 +841,33 @@ def process_alns_reg(component, parms):
     return res
 
 
-def read_mmseqs2(res):
-    results = pd.read_csv(
+def read_mmseqs2(res, threads):
+    aln = dt.fread(
         res,
         sep="\t",
+        header=False,
+        nthreads=threads,
+        columns=[
+            "source",
+            "target",
+            "pident",
+            "alnlen",
+            "mismatch",
+            "gapopen",
+            "qstart",
+            "qend",
+            "tstart",
+            "tend",
+            "evalue",
+            "bits",
+            "qlen",
+            "tlen",
+            "qcov",
+            "tcov",
+        ],
     )
-    results.columns = [
-        "source",
-        "target",
-        "pident",
-        "alnlen",
-        "mismatch",
-        "gapopen",
-        "qstart",
-        "qend",
-        "tstart",
-        "tend",
-        "evalue",
-        "bits",
-        "qlen",
-        "tlen",
-        "qcov",
-        "tcov",
-    ]
-    return results
+    aln[dt.bool8] = dt.int32
+    return aln
 
 
 def get_graph(contigs, tmp_dir, max_seq_len, threads, min_id, min_cov):
@@ -873,19 +885,16 @@ def get_graph(contigs, tmp_dir, max_seq_len, threads, min_id, min_cov):
     Read file with mmseqs2 results
     """
     logging.info("Importing all-vs-all results")
-    results = read_mmseqs2(mmseqs2_res)
-    logging.info(f"Read {len(results.index)} entries")
+    results = read_mmseqs2(mmseqs2_res, threads)
+    logging.info(f"Read {results.shape[0]:,} entries")
     # aln_seqs = get_alignments(results=results, min_id=args.min_id, min_cov=args.min_cov, contigs=contigs)
 
     logging.info("Creating graph from all-vs-all results")
-    G, results_filt = create_graph(results=results, min_id=min_id, min_cov=min_cov)
+    G, results_filt = create_graph(
+        results=results, min_id=min_id, min_cov=min_cov, threads=threads
+    )
     log.info(
-        "Graph properties: nodes={} edges={} density={} components={}".format(
-            G.number_of_nodes(),
-            G.number_of_edges(),
-            f"{nx.density(G):.3f}",
-            nx.number_connected_components(G),
-        )
+        f"Graph properties: nodes={G.number_of_nodes():,} edges={G.number_of_edges():,} density={nx.density(G):.3f} components={nx.number_connected_components(G):,}"
     )
     return G, results_filt
 
@@ -986,3 +995,12 @@ def calc_chunksize(n_workers, len_iterable, factor=4):
     if extra:
         chunksize += 1
     return chunksize
+
+
+def get_seqs(i, parms):
+    df = parms["chunks"][i]
+    aln_reg_small = pr.PyRanges(df)
+    seqs = pr.get_fasta(aln_reg_small, parms["contigs"])
+    aln_reg_small.sequence = seqs
+    aln_reg_small = aln_reg_small.df
+    return aln_reg_small

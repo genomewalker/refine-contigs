@@ -10,4 +10,5 @@ dependencies:
   - mummer4
   - pip
   - pip:
-    - Cython>=0.29.21
+      - Cython>=0.29.21
+      - datatable>=1.0.0
