@@ -60,7 +60,7 @@ def merge_contigs(args):
     contigs["name"] = contigs["name"].apply(lambda x: f"{prefix}_{x:012d}", 1)
     contigs["length"] = contigs.sequence.map(len)
 
-    logging.info(f"Read and processed {len(contigs.index)} contigs")
+    logging.info(f"Read and processed {len(contigs.index):,} contigs")
     contigs_tmp = pathlib.Path(tmp_dir, dname).with_suffix(".fasta")
     seq_records = df_to_seq(contigs[["name", "sequence"]])
     with open(contigs_tmp, "w") as handle:
@@ -222,7 +222,9 @@ def merge_contigs(args):
 
         comp_fname = f"{args.output}.merged.all-vs-all.tsv.gz"
         logging.info(f"Saving all-vs-all comparison to {comp_fname} file")
-        results.to_csv(comp_fname, sep="\t", compression="gzip", index=False)
+        results.to_pandas().to_csv(
+            comp_fname, sep="\t", compression="gzip", index=False
+        )
 
         g_fname = f"{args.output}.merged.graph-edgelist.tsv.gz"
         logging.info(f"Saving graph edgelist to {g_fname} file")

@@ -378,7 +378,7 @@ def connected_component_subgraphs(G):
 def create_graph(results, min_id, min_cov, threads):
     dt.options.nthreads = threads
     results_filt = results[
-        dt.f.pident >= min_id, dt.f["source", "target", "pident", "qcov"]
+        dt.f.pident >= min_id, ["source", "target", "pident", "qcov"]
     ].to_pandas()
     results_filt.columns = ["source", "target", "pident", "weight"]
     G = nx.Graph().to_undirected()
