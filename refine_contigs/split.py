@@ -157,14 +157,17 @@ def split_contigs(args):
                 threads=args.threads,
                 func=process_alns_reg,
             )
+
             chunks = np.array_split(aln_reg_small, args.threads)
+            chunks = list(filter(lambda df: not df.empty, chunks))
+
             parms = {
                 "contigs": str(contigs_tmp),
                 "chunks": chunks,
             }
             aln_reg_small = do_parallel(
                 parms=parms,
-                lst=list(range(0, args.threads)),
+                lst=list(range(0, len(chunks))),
                 threads=args.threads,
                 func=get_seqs,
             )
