@@ -1,12 +1,13 @@
 name: refine-contigs
 channels:
   - conda-forge
+  - sagrudd
   - bioconda
   - defaults
 dependencies:
   - python>=3.6,<3.7
   - mmseqs2
-  - amos
+  - amos=3.1.0=h14c3975_6
   - mummer4
   - pip
   - pip:
