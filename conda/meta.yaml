@@ -14,12 +14,12 @@ build:
 
 requirements:
   build:
-    - python>=3.6,<3.7
+    - python==3.9
     - setuptools
     - pip
     - Cython>=0.29.21
   run:
-    - python>=3.6,<3.7
+    - python==3.9
     - mmseqs2
     - pandas<=1.2.0
     - scipy>=1.5.2
